@@ -34,7 +34,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential fakeroot libxml2 \
-            perl git curl wget unzip xz-utils zip rsync
+            perl git curl wget unzip xz-utils zip rsync libplist-utils
           # clang-11 from the toolchain needs libtinfo5, which was dropped in
           # Ubuntu 24.04. Try the repo first, then fall back to the focal .deb.
           if ! sudo apt-get install -y libtinfo5; then
@@ -124,15 +124,28 @@ jobs:
             PatchPlist.sh           Helper to bump MinimumOSVersion + rezip
 
           Quick start (Linux only):
-            1. Extract your .ipa so you have a Payload/ folder here.
-            2. Put tools/install_name_tool on PATH (or call it directly):
-                 export PATH="$PWD/tools:$PATH"
-            3. Patch your app:
+            1. Install a plist editor (one time):
+                 sudo apt-get install -y libplist-utils zip
+            2. Extract your .ipa here so you have a Payload/ folder next to
+               these files.
+            3. Patch your app (run from this folder):
                  ./ExtendioLegacyPatch.sh <AppName>
-               (NOTE: ExtendioLegacyPatch.sh / PatchPlist.sh use PlistBuddy,
-                which is macOS-only. On Linux edit Info.plist's MinimumOSVersion
-                by hand or with `plistutil`/`plutil` before running the
-                install_name_tool steps.)
+               where <AppName> is the name of Payload/<AppName>.app (and its
+               executable inside it).
+
+          What ExtendioLegacyPatch.sh does:
+            * Sets MinimumOSVersion to 6.0 in the app's Info.plist
+              (uses PlistBuddy on macOS, or plutil / plistutil on Linux).
+            * Copies GameController.dylib + ReExtendioDylib.dylib into a NEW
+              local folder:  Payload/<AppName>.app/dylib/
+            * Repoints the app executable's load commands to those local copies
+              via @executable_path/dylib/GameController.dylib and
+              @executable_path/dylib/ReExtendioDylib.dylib
+              (no system paths are touched — everything lives inside the app).
+            * It automatically finds install_name_tool: PATH first, then the
+              bundled tools/install_name_tool, then $THEOS. You do NOT need
+              Theos installed.
+            * Re-zips the patched Payload as <AppName>.zip (rename to .ipa).
 
           The dylibs are fat binaries (armv7 + arm64 + arm64e).
           EOF

@@ -72,15 +72,27 @@ the GitHub Actions workflow (see **Releases**, built on tag pushes).
 
 ## How to use
 
-1. Download the latest dylibs from **Releases**, or compile them yourself (above).
-2. Extract the `.ipa` in the same folder as the `.sh` scripts.
-3. Put the dylibs in the root folder where iExtendio resides.
-4. Patch `ReExtendioDylib.dylib` to reexport from `libSystem.B` with
-   `PatchDylib.sh` (this already happens if you followed the build steps).
-5. Patch your IPA with `ExtendioLegacyPatch.sh`, supplying the extracted app name.
+1. Download the latest `libExtender-linux.zip` from **Releases**, or compile the
+   dylibs yourself (above).
+2. Extract the `.ipa` in the same folder as the `.sh` scripts so you have a
+   `Payload/` folder there.
+3. On Linux, install a plist editor + zip once: `sudo apt-get install -y libplist-utils zip`.
+4. Patch your app:
+
+   ```bash
+   ./ExtendioLegacyPatch.sh <AppName>
+   ```
+
+   This copies `GameController.dylib` and `ReExtendioDylib.dylib` into a local
+   `Payload/<AppName>.app/dylib/` folder, repoints the app executable to
+   `@executable_path/dylib/...` (nothing system-wide is touched), bumps
+   `MinimumOSVersion` to 6.0, and re-zips the result as `<AppName>.zip` (rename
+   to `.ipa`). It auto-finds `install_name_tool` on `PATH`, in the bundled
+   `tools/` folder, or under `$THEOS` — so no Theos install is required when
+   using the release zip.
 
 ## Continuous builds
 
-`.github/workflows/build.yml` builds all dylibs on Ubuntu using the Theos Linux
+`.github/workflows/main.yml` builds all dylibs on Ubuntu using the Theos Linux
 toolchain on every push/PR, uploads them as build artifacts, and attaches them to
 a GitHub Release when you push a `v*` tag (e.g. `git tag v0.0.1 && git push --tags`).
