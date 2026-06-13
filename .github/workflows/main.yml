@@ -1,15 +1,18 @@
-name: Build libExtender dylibs (Linux)
+name: Build libExtender (Linux)
 
 # Builds GameController.dylib + ReExtendioDylib.dylib (and the empty.dylib
 # placeholder) on Ubuntu using the Theos Linux toolchain, patches the reexport,
-# and uploads the results. On a tag push (v*) it also attaches them to a Release.
+# then bundles everything — together with the toolchain's install_name_tool and
+# the patch scripts — into a single ready-to-use zip. All a user needs is Linux:
+# unzip, run the scripts, done. On a tag push (v*) the zip is attached to a
+# Release.
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, linux-build-support ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, linux-build-support ]
   workflow_dispatch:
 
 permissions:
@@ -77,39 +80,90 @@ jobs:
           # empty.dylib + ReExtendioDylib.dylib
           ( cd ReExtendioDylib && make clean || true; make )
 
-      - name: Collect & patch artifacts
+      - name: Collect, patch & bundle
         run: |
           set -euxo pipefail
           export THEOS="$THEOS"
-          export PATH="$THEOS/toolchain/linux/iphone/bin:$PATH"
+          TC="$THEOS/toolchain/linux/iphone/bin"
+          export PATH="$TC:$PATH"
 
-          mkdir -p dist
-          cp .theos/obj/debug/GameController.dylib dist/
-          cp ReExtendioDylib/.theos/obj/debug/ReExtendioDylib.dylib dist/
-          cp ReExtendioDylib/.theos/obj/debug/empty.dylib dist/ || true
+          rm -rf bundle
+          mkdir -p bundle/tools
 
-          # Patch reexport: empty.dylib -> libSystem.B.dylib
-          bash PatchDylib.sh dist/ReExtendioDylib.dylib
+          # --- dylibs ---
+          cp .theos/obj/debug/GameController.dylib bundle/
+          cp ReExtendioDylib/.theos/obj/debug/ReExtendioDylib.dylib bundle/
+          cp ReExtendioDylib/.theos/obj/debug/empty.dylib bundle/ || true
+
+          # Patch reexport: empty.dylib -> libSystem.B.dylib (so the bundled
+          # ReExtendioDylib.dylib is already good to go out of the box).
+          bash PatchDylib.sh bundle/ReExtendioDylib.dylib
+
+          # --- bundle the toolchain's install_name_tool so users don't need Theos ---
+          cp "$TC/install_name_tool" bundle/tools/
+          chmod +x bundle/tools/install_name_tool
+
+          # --- patch scripts ---
+          cp PatchDylib.sh ExtendioLegacyPatch.sh PatchPlist.sh bundle/
+
+          # --- usage note ---
+          cat > bundle/README.txt <<'EOF'
+          libExtender — prebuilt dylibs + Linux install_name_tool
+          =======================================================
+
+          Contents:
+            GameController.dylib    Stub GameController.framework for iOS 6
+            ReExtendioDylib.dylib   Missing-symbol stubs (already patched to
+                                    reexport /usr/lib/libSystem.B.dylib)
+            empty.dylib             Placeholder (not needed at runtime)
+            tools/install_name_tool Theos' Linux install_name_tool — no Theos
+                                    install required, works on any x86_64 Linux
+            PatchDylib.sh           Repoints the ReExtendioDylib reexport (already
+                                    applied to the bundled dylib; re-run if needed)
+            ExtendioLegacyPatch.sh  Patches an extracted IPA to use these dylibs
+            PatchPlist.sh           Helper to bump MinimumOSVersion + rezip
+
+          Quick start (Linux only):
+            1. Extract your .ipa so you have a Payload/ folder here.
+            2. Put tools/install_name_tool on PATH (or call it directly):
+                 export PATH="$PWD/tools:$PATH"
+            3. Patch your app:
+                 ./ExtendioLegacyPatch.sh <AppName>
+               (NOTE: ExtendioLegacyPatch.sh / PatchPlist.sh use PlistBuddy,
+                which is macOS-only. On Linux edit Info.plist's MinimumOSVersion
+                by hand or with `plistutil`/`plutil` before running the
+                install_name_tool steps.)
+
+          The dylibs are fat binaries (armv7 + arm64 + arm64e).
+          EOF
+
+          echo "=== bundle contents ==="
+          ls -laR bundle
 
           echo "=== Architectures ==="
-          for f in dist/*.dylib; do
+          for f in bundle/*.dylib; do
             echo "--- $f ---"
             lipo -info "$f" || true
           done
 
           echo "=== ReExtendioDylib reexport (should be libSystem.B.dylib) ==="
-          otool -l dist/ReExtendioDylib.dylib | grep -A2 LC_REEXPORT_DYLIB || true
+          otool -l bundle/ReExtendioDylib.dylib | grep -A2 LC_REEXPORT_DYLIB || true
 
-      - name: Upload build artifacts
+          # --- zip it up ---
+          ( cd bundle && zip -r ../libExtender-linux.zip . )
+          echo "=== zip contents ==="
+          unzip -l libExtender-linux.zip
+
+      - name: Upload build artifact (zip)
         uses: actions/upload-artifact@v4
         with:
-          name: iExtendio-dylibs
-          path: dist/*.dylib
+          name: libExtender-linux
+          path: libExtender-linux.zip
           if-no-files-found: error
 
       - name: Attach to Release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.dylib
+          files: libExtender-linux.zip
           generate_release_notes: true
