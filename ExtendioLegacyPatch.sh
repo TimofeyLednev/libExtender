@@ -247,8 +247,14 @@ while IFS= read -r -d '' bin; do
   [[ "$bin" == "$EXECUTABLE" ]] && continue
   [[ "$bin" == "$DYLIB_DIR/"* ]] && continue
   is_macho "$bin" || continue
+
   for fwpath in "${SHIM_FRAMEWORKS[@]}"; do
-    if "$OTOOL" -L "$bin" 2>/dev/null | grep -qF "$fwpath"; then
+    if [[ -n "$OTOOL" ]]; then
+      if "$OTOOL" -L "$bin" 2>/dev/null | grep -qF "$fwpath"; then
+        "$INT" -change "$fwpath" "$SHIM_REL" "$bin" 2>/dev/null \
+          && echo "Repointed ${fwpath##*/} -> shim in ${bin#$APP_DIR/}"
+      fi
+    else
       "$INT" -change "$fwpath" "$SHIM_REL" "$bin" 2>/dev/null \
         && echo "Repointed ${fwpath##*/} -> shim in ${bin#$APP_DIR/}"
     fi
