@@ -20,22 +20,22 @@ static NSString *REPercentEncode(NSString *value) {
     return value ? [value stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding] : nil;
 }
 
-NSString * const NSURLSessionDownloadTaskResumeData = @"NSURLSessionDownloadTaskResumeData";
-const int64_t NSURLSessionTransferSizeUnknown = -1;
+__attribute__((visibility("default"))) NSString * const NSURLSessionDownloadTaskResumeData = @"NSURLSessionDownloadTaskResumeData";
+__attribute__((visibility("default"))) const int64_t NSURLSessionTransferSizeUnknown = -1;
 
 // iOS 7/8/9-only string constants absent from iOS 6. Apps and nested
 // frameworks (e.g. XSAPITCUI) that link them resolve from this shim; everything
 // else falls through to the real frameworks via reexport.
-NSString * const NSLinkAttributeName = @"NSLink";
-NSString * const UIFontTextStyleBody = @"UICTFontTextStyleBody";
-NSString * const UIFontTextStyleHeadline = @"UICTFontTextStyleHeadline";
-NSString * const UIFontTextStyleSubheadline = @"UICTFontTextStyleSubhead";
-NSString * const UIFontTextStyleFootnote = @"UICTFontTextStyleFootnote";
-NSString * const UIFontTextStyleCaption1 = @"UICTFontTextStyleCaption1";
-NSString * const UIFontTextStyleCaption2 = @"UICTFontTextStyleCaption2";
-NSString * const UIContentSizeCategoryDidChangeNotification = @"UIContentSizeCategoryDidChangeNotification";
-NSString * const UIApplicationOpenSettingsURLString = @"app-settings:";
-NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicationOpenURLOptionsSourceApplicationKey";
+__attribute__((visibility("default"))) NSString * const NSLinkAttributeName = @"NSLink";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleBody = @"UICTFontTextStyleBody";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleHeadline = @"UICTFontTextStyleHeadline";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleSubheadline = @"UICTFontTextStyleSubhead";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleFootnote = @"UICTFontTextStyleFootnote";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleCaption1 = @"UICTFontTextStyleCaption1";
+__attribute__((visibility("default"))) NSString * const UIFontTextStyleCaption2 = @"UICTFontTextStyleCaption2";
+__attribute__((visibility("default"))) NSString * const UIContentSizeCategoryDidChangeNotification = @"UIContentSizeCategoryDidChangeNotification";
+__attribute__((visibility("default"))) NSString * const UIApplicationOpenSettingsURLString = @"app-settings:";
+__attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicationOpenURLOptionsSourceApplicationKey";
 
 @implementation NSURLQueryItem
 
@@ -495,9 +495,9 @@ NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicati
 #pragma mark - NSHTTPCookieStorage (CFNetwork shim)
 
 // MCPE 1.1.5 references _OBJC_CLASS_$_NSHTTPCookieStorage from CFNetwork.
-// On iOS 6.1.3 dyld can't resolve it at pre-bind time because the symbol
-// visibility changed in iOS 7. Providing the class here (reexported via
-// emptycfnetwork -> CFNetwork) satisfies dyld before the process starts.
+// On iOS 6.1.3 dyld cannot resolve it at pre-bind time because the symbol
+// visibility changed in iOS 7. Providing the class here satisfies dyld before
+// the process starts.
 
 @interface NSHTTPCookieStorage ()
 @property (nonatomic, strong) NSMutableArray *re_cookies;
