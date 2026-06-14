@@ -164,7 +164,6 @@ echo "Copied ReExtendioDylib.dylib to $DYLIB_DIR/"
 "$INT" \
   -change /System/Library/Frameworks/GameController.framework/GameController @executable_path/dylib/GameController.dylib \
   -change /usr/lib/libSystem.B.dylib @executable_path/dylib/ReExtendioDylib.dylib \
-  -change /System/Library/Frameworks/Foundation.framework/Foundation @executable_path/dylib/ReExtendioDylib.dylib \
   "$EXECUTABLE"
 
 # Stage into a proper IPA layout (Payload/<App>.app) and zip it up, no matter
