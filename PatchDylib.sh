@@ -35,6 +35,8 @@ fi
 "$INT" \
   -change /usr/local/lib/empty.dylib /usr/lib/libSystem.B.dylib \
   -change /usr/local/lib/emptyfoundation.dylib /System/Library/Frameworks/Foundation.framework/Foundation \
+  -change /usr/local/lib/emptyavfoundation.dylib /System/Library/Frameworks/AVFoundation.framework/AVFoundation \
+  -change /usr/local/lib/emptyuikit.dylib /System/Library/Frameworks/UIKit.framework/UIKit \
   "$DYLIB"
 
-echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib + Foundation"
+echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib + Foundation + AVFoundation + UIKit"

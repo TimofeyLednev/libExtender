@@ -21,7 +21,16 @@ layers those back in so the app launches on iOS 6:
 - **`ReExtendioDylib.dylib`** — defines the symbols iOS 6's libSystem is missing
   (`__sincos_stret`, `__exp10`) and reexports `empty.dylib`. After building, the
   reexport is repointed to `/usr/lib/libSystem.B.dylib` so the stubs get layered
-  on top of the real system library at runtime.
+  on top of the real system library at runtime. It also defines iOS 7/8-only
+  Objective-C classes the app links against but iOS 6 lacks — `NSURLSession`
+  and friends, `NSURLComponents`/`NSURLQueryItem`, `NSProgress`,
+  `UIAlertController`/`UIAlertAction`, `UIUserNotificationSettings`,
+  `AVSpeechSynthesizer`/`AVSpeechUtterance` — and reexports the real
+  `Foundation`, `UIKit` and `AVFoundation` (via the `emptyfoundation`/
+  `emptyuikit`/`emptyavfoundation` placeholders). The patch script repoints the
+  app's (and every nested framework's) `Foundation`/`UIKit`/`AVFoundation` load
+  commands to the shim, so the missing classes resolve from here while
+  everything else falls through to the real frameworks.
 
 ## Compatibility list
 
@@ -32,7 +41,7 @@ layers those back in so the app launches on iOS 6:
 | PPAP | Gets ingame, but crashes with `KERN_INVALID_ADDRESS` at `0x00000000` once your bullet reaches the top. |
 | Geometry Dash 2.11 | **Fully playable** - the game works completely and perfectly, and this is an iOS 8 game |
 | Kiloblocks | **Fully playable** - the game works fully, and this is an iOS 8 game |
-| Minecraft PE 1.1.5 | **WIP** — `Photos.dylib` stub fixes the dyld load-time crash (`Photos.framework` missing on iOS 6). Past the launch abort; further testing ongoing. |
+| Minecraft PE 1.1.5 | **WIP** — `Photos.dylib` stub fixed the first dyld abort; the second abort (`Symbol not found: _NSURLSessionDownloadTaskResumeData`, pulled in by the Xbox Live `XSAPITCUI.framework`) is now fixed by stubbing the iOS 7/8 `NSURLSession` class cluster, `NSProgress`, `UIAlertController`/`UIAlertAction`, `UIUserNotificationSettings` and the `AVSpeech*` classes in `ReExtendioDylib` and repointing nested frameworks' Foundation/UIKit/AVFoundation to the shim. All iOS 7/8 symbols now resolve at load time; runtime testing ongoing. |
 
 ## Building
 

@@ -184,6 +184,19 @@ echo "Copied ReExtendioDylib.dylib to $DYLIB_DIR/"
 # install_name_tool args, built up as needed.
 INT_ARGS=(-change /usr/lib/libSystem.B.dylib @executable_path/dylib/ReExtendioDylib.dylib)
 
+# Repoint Foundation/AVFoundation/UIKit to the shim as well so iOS 7/8-only
+# symbols (NSURLSession, NSProgress, UIAlertController, AVSpeechSynthesizer, ...)
+# resolve on iOS 6. Everything else falls through to the real framework via the
+# shim's reexports.
+SHIM_FRAMEWORKS=(
+  "/System/Library/Frameworks/Foundation.framework/Foundation"
+  "/System/Library/Frameworks/AVFoundation.framework/AVFoundation"
+  "/System/Library/Frameworks/UIKit.framework/UIKit"
+)
+for fwpath in "${SHIM_FRAMEWORKS[@]}"; do
+  INT_ARGS+=(-change "$fwpath" @executable_path/dylib/ReExtendioDylib.dylib)
+done
+
 # --- Stub frameworks: only repoint the ones this executable actually links. ---
 # name|dylib|framework-load-command-path
 STUBS=(
@@ -207,6 +220,40 @@ for entry in "${STUBS[@]}"; do
 done
 
 "$INT" "${INT_ARGS[@]}" "$EXECUTABLE"
+
+# --- Nested Mach-O binaries (frameworks, dylibs) -------------------------------
+# iOS uses a two-level namespace, so a nested framework (e.g. XSAPITCUI) that
+# references iOS 7/8-only symbols looks them up in *its own* framework load
+# command, not the app's. Repoint Foundation/AVFoundation/UIKit -> the shim in
+# every bundled Mach-O that links them so those symbols resolve from the shim
+# while everything else falls through to the real framework via reexport.
+# @executable_path always resolves to the main executable's directory, even for
+# nested binaries, so the relative path stays valid.
+SHIM_REL="@executable_path/dylib/ReExtendioDylib.dylib"
+
+is_macho() {
+  # crude Mach-O sniff: read 4-byte magic
+  local f="$1"
+  local magic
+  magic="$(od -An -tx1 -N4 "$f" 2>/dev/null | tr -d ' \n')"
+  case "$magic" in
+    cffaedfe|feedface|feedfacf|cefaedfe|cafebabe|bebafeca) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+while IFS= read -r -d '' bin; do
+  # Skip the main executable (already handled) and our injected dylib/ folder.
+  [[ "$bin" == "$EXECUTABLE" ]] && continue
+  [[ "$bin" == "$DYLIB_DIR/"* ]] && continue
+  is_macho "$bin" || continue
+  for fwpath in "${SHIM_FRAMEWORKS[@]}"; do
+    if "$OTOOL" -L "$bin" 2>/dev/null | grep -qF "$fwpath"; then
+      "$INT" -change "$fwpath" "$SHIM_REL" "$bin" 2>/dev/null \
+        && echo "Repointed ${fwpath##*/} -> shim in ${bin#$APP_DIR/}"
+    fi
+  done
+done < <(find "$APP_DIR" -type f -print0)
 
 # Stage into a proper IPA layout (Payload/<App>.app) and zip it up, no matter
 # where the .app currently lives.
