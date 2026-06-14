@@ -25,12 +25,15 @@ layers those back in so the app launches on iOS 6:
   Objective-C classes the app links against but iOS 6 lacks — `NSURLSession`
   and friends, `NSURLComponents`/`NSURLQueryItem`, `NSProgress`,
   `UIAlertController`/`UIAlertAction`, `UIUserNotificationSettings`,
-  `AVSpeechSynthesizer`/`AVSpeechUtterance` — and reexports the real
-  `Foundation`, `UIKit` and `AVFoundation` (via the `emptyfoundation`/
-  `emptyuikit`/`emptyavfoundation` placeholders). The patch script repoints the
-  app's (and every nested framework's) `Foundation`/`UIKit`/`AVFoundation` load
-  commands to the shim, so the missing classes resolve from here while
-  everything else falls through to the real frameworks.
+  `AVSpeechSynthesizer`/`AVSpeechUtterance`, and the StoreKit classes needed by
+  Minecraft PE 1.1.5 (`SKRequest`, `SKPaymentQueue`, `SKProductsRequest`,
+  `SKReceiptRefreshRequest`) — and reexports the real `Foundation`, `UIKit`,
+  `AVFoundation`, and `StoreKit` (via the `emptyfoundation`/
+  `emptyuikit`/`emptyavfoundation`/`emptystorekit` placeholders). The patch
+  script repoints the app's (and every nested framework's)
+  `Foundation`/`UIKit`/`AVFoundation`/`StoreKit` load commands to the shim, so
+  the missing classes resolve from here while everything else falls through to
+  the real frameworks.
 
 ## Compatibility list
 
@@ -41,7 +44,7 @@ layers those back in so the app launches on iOS 6:
 | PPAP | Gets ingame, but crashes with `KERN_INVALID_ADDRESS` at `0x00000000` once your bullet reaches the top. |
 | Geometry Dash 2.11 | **Fully playable** - the game works completely and perfectly, and this is an iOS 8 game |
 | Kiloblocks | **Fully playable** - the game works fully, and this is an iOS 8 game |
-| Minecraft PE 1.1.5 | **WIP** — `Photos.dylib` stub fixed the first dyld abort; the second abort (`Symbol not found: _NSURLSessionDownloadTaskResumeData`, pulled in by the Xbox Live `XSAPITCUI.framework`) is now fixed by stubbing the iOS 7/8 `NSURLSession` class cluster, `NSProgress`, `UIAlertController`/`UIAlertAction`, `UIUserNotificationSettings` and the `AVSpeech*` classes in `ReExtendioDylib` and repointing nested frameworks' Foundation/UIKit/AVFoundation to the shim. All iOS 7/8 symbols now resolve at load time; runtime testing ongoing. |
+| Minecraft PE 1.1.5 | **WIP** — `Photos.dylib` stub fixed the first dyld abort; the second abort (`Symbol not found: _NSURLSessionDownloadTaskResumeData`, pulled in by the Xbox Live `XSAPITCUI.framework`) is now fixed by stubbing the iOS 7/8 `NSURLSession` class cluster, `NSProgress`, `UIAlertController`/`UIAlertAction`, `UIUserNotificationSettings`, and the `AVSpeech*` classes in `ReExtendioDylib` and repointing nested frameworks' Foundation/UIKit/AVFoundation to the shim. The latest crash on `SKReceiptRefreshRequest` is now fixed by shimming StoreKit too. All iOS 7/8 symbols now resolve at load time; runtime testing ongoing. |
 
 ## Building
 

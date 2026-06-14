@@ -752,6 +752,139 @@ __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOpti
 
 @end
 
+#pragma mark - StoreKit (iOS 7)
+
+typedef NS_ENUM(NSInteger, SKPaymentTransactionState) {
+    SKPaymentTransactionStatePurchasing = 0,
+    SKPaymentTransactionStatePurchased = 1,
+    SKPaymentTransactionStateFailed = 2,
+    SKPaymentTransactionStateRestored = 3,
+    SKPaymentTransactionStateDeferred = 4,
+};
+
+@interface SKRequest : NSObject
+@property(nonatomic, weak) id delegate;
+- (void)start;
+- (void)cancel;
+@end
+
+@implementation SKRequest
+- (void)start {}
+- (void)cancel {}
+@end
+
+@interface SKPayment : NSObject
+@end
+
+@implementation SKPayment
+@end
+
+@interface SKMutablePayment : SKPayment
+@property(nonatomic, copy) NSString *productIdentifier;
+@property(nonatomic, copy) NSString *applicationUsername;
+@property(nonatomic) NSInteger quantity;
+@end
+
+@implementation SKMutablePayment
+@end
+
+@interface SKProduct : NSObject
+@end
+
+@implementation SKProduct
+@end
+
+@interface SKProductsResponse : NSObject
+@property(nonatomic, copy) NSArray *products;
+@property(nonatomic, copy) NSArray *invalidProductIdentifiers;
+@end
+
+@implementation SKProductsResponse
+@end
+
+@interface SKProductsRequest : SKRequest
+@property(nonatomic, copy) NSSet *productIdentifiers;
+@end
+
+@implementation SKProductsRequest
+@end
+
+@interface SKPaymentTransaction : NSObject
+@property(nonatomic, readonly) SKPaymentTransactionState transactionState;
+@property(nonatomic, copy) NSString *transactionIdentifier;
+@property(nonatomic, retain) SKPayment *payment;
+@end
+
+@implementation SKPaymentTransaction
+- (SKPaymentTransactionState)transactionState {
+    return SKPaymentTransactionStatePurchased;
+}
+@end
+
+@interface SKPaymentQueue : NSObject
++ (SKPaymentQueue *)defaultQueue;
++ (BOOL)canMakePayments;
+@property(nonatomic, readonly) NSArray *transactions;
+- (void)addPayment:(SKPayment *)payment;
+- (void)restoreCompletedTransactions;
+- (void)finishTransaction:(SKPaymentTransaction *)transaction;
+- (void)addTransactionObserver:(id)observer;
+- (void)removeTransactionObserver:(id)observer;
+@end
+
+@interface SKPaymentQueue ()
+@property(nonatomic, retain) NSMutableArray *re_transactions;
+@end
+
+@implementation SKPaymentQueue
+
++ (SKPaymentQueue *)defaultQueue {
+    static SKPaymentQueue *queue = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = [[self alloc] init];
+    });
+    return queue;
+}
+
++ (BOOL)canMakePayments {
+    return NO;
+}
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _re_transactions = [NSMutableArray array];
+    }
+    return self;
+}
+
+- (NSArray *)transactions {
+    return [self.re_transactions copy];
+}
+
+- (void)addPayment:(SKPayment *)payment {
+    if (!payment) {
+        return;
+    }
+    [self.re_transactions addObject:payment];
+}
+
+- (void)restoreCompletedTransactions {}
+- (void)restoreCompletedTransactionsWithApplicationUsername:(NSString *)username {}
+- (void)finishTransaction:(SKPaymentTransaction *)transaction {}
+- (void)startDownloads:(NSArray *)downloads {}
+- (void)cancelDownloads:(NSArray *)downloads {}
+- (void)resumeDownloads:(NSArray *)downloads {}
+
+@end
+
+@interface SKReceiptRefreshRequest : SKRequest
+@end
+
+@implementation SKReceiptRefreshRequest
+@end
+
 struct __float2 __sincosf_stret(float __x) {
     struct __float2 __r;
     __r.__sinval = sinf(__x);

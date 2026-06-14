@@ -38,6 +38,7 @@ fi
   -change /usr/local/lib/emptyavfoundation.dylib /System/Library/Frameworks/AVFoundation.framework/AVFoundation \
   -change /usr/local/lib/emptyuikit.dylib /System/Library/Frameworks/UIKit.framework/UIKit \
   -change /usr/local/lib/emptycfnetwork.dylib /System/Library/Frameworks/CFNetwork.framework/CFNetwork \
+  -change /usr/local/lib/emptystorekit.dylib /System/Library/Frameworks/StoreKit.framework/StoreKit \
   "$DYLIB"
 
-echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib + Foundation + AVFoundation + UIKit"
+echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib + Foundation + AVFoundation + UIKit + CFNetwork + StoreKit"

@@ -184,14 +184,14 @@ echo "Copied ReExtendioDylib.dylib to $DYLIB_DIR/"
 # install_name_tool args, built up as needed.
 INT_ARGS=(-change /usr/lib/libSystem.B.dylib @executable_path/dylib/ReExtendioDylib.dylib)
 
-# Repoint Foundation/AVFoundation/UIKit to the shim as well so iOS 7/8-only
-# symbols (NSURLSession, NSProgress, UIAlertController, AVSpeechSynthesizer, ...)
-# resolve on iOS 6. Everything else falls through to the real framework via the
+# Repoint Foundation/AVFoundation/UIKit/StoreKit to the shim as well so iOS 7/8-only
+# symbols resolve on iOS 6. Everything else falls through to the real framework via the
 # shim's reexports.
 SHIM_FRAMEWORKS=(
   "/System/Library/Frameworks/Foundation.framework/Foundation"
   "/System/Library/Frameworks/AVFoundation.framework/AVFoundation"
   "/System/Library/Frameworks/UIKit.framework/UIKit"
+  "/System/Library/Frameworks/StoreKit.framework/StoreKit"
 )
 for fwpath in "${SHIM_FRAMEWORKS[@]}"; do
   INT_ARGS+=(-change "$fwpath" @executable_path/dylib/ReExtendioDylib.dylib)
