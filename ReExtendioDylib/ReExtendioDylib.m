@@ -23,6 +23,20 @@ static NSString *REPercentEncode(NSString *value) {
 NSString * const NSURLSessionDownloadTaskResumeData = @"NSURLSessionDownloadTaskResumeData";
 const int64_t NSURLSessionTransferSizeUnknown = -1;
 
+// iOS 7/8/9-only string constants absent from iOS 6. Apps and nested
+// frameworks (e.g. XSAPITCUI) that link them resolve from this shim; everything
+// else falls through to the real frameworks via reexport.
+NSString * const NSLinkAttributeName = @"NSLink";
+NSString * const UIFontTextStyleBody = @"UICTFontTextStyleBody";
+NSString * const UIFontTextStyleHeadline = @"UICTFontTextStyleHeadline";
+NSString * const UIFontTextStyleSubheadline = @"UICTFontTextStyleSubhead";
+NSString * const UIFontTextStyleFootnote = @"UICTFontTextStyleFootnote";
+NSString * const UIFontTextStyleCaption1 = @"UICTFontTextStyleCaption1";
+NSString * const UIFontTextStyleCaption2 = @"UICTFontTextStyleCaption2";
+NSString * const UIContentSizeCategoryDidChangeNotification = @"UIContentSizeCategoryDidChangeNotification";
+NSString * const UIApplicationOpenSettingsURLString = @"app-settings:";
+NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicationOpenURLOptionsSourceApplicationKey";
+
 @implementation NSURLQueryItem
 
 + (instancetype)queryItemWithName:(NSString *)name value:(NSString *)value {
