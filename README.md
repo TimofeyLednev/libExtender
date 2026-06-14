@@ -11,6 +11,11 @@ layers those back in so the app launches on iOS 6:
 
 - **`GameController.dylib`** — a stub `GameController.framework` replacement
   (`GameController.x`), since iOS 6 has no GameController framework.
+- **`Photos.dylib`** — a stub `Photos.framework` replacement (`Photos.x`), since
+  iOS 6 has no Photos framework (it arrived in iOS 8). Apps that link against it
+  without calling into it would otherwise abort at dyld load time with
+  `Library not loaded: .../Photos.framework/Photos`. The patch script only
+  repoints it for apps that actually link Photos.
 - **`empty.dylib`** — a tiny placeholder library whose install name is
   `/usr/local/lib/empty.dylib`. It only exists to be reexported at link time.
 - **`ReExtendioDylib.dylib`** — defines the symbols iOS 6's libSystem is missing
@@ -27,6 +32,7 @@ layers those back in so the app launches on iOS 6:
 | PPAP | Gets ingame, but crashes with `KERN_INVALID_ADDRESS` at `0x00000000` once your bullet reaches the top. |
 | Geometry Dash 2.11 | **Fully playable** - the game works completely and perfectly, and this is an iOS 8 game |
 | Kiloblocks | **Fully playable** - the game works fully, and this is an iOS 8 game |
+| Minecraft PE 1.1.5 | **WIP** — `Photos.dylib` stub fixes the dyld load-time crash (`Photos.framework` missing on iOS 6). Past the launch abort; further testing ongoing. |
 
 ## Building
 
@@ -58,7 +64,7 @@ export PATH="$THEOS/toolchain/linux/iphone/bin:$PATH"
 ### Compile
 
 ```bash
-# GameController.dylib
+# GameController.dylib + Photos.dylib
 make
 
 # empty.dylib + ReExtendioDylib.dylib
@@ -85,7 +91,8 @@ the GitHub Actions workflow (see **Releases**, built on tag pushes).
    ./ExtendioLegacyPatch.sh <AppName>
    ```
 
-   This copies `GameController.dylib` and `ReExtendioDylib.dylib` into a local
+   This copies `ReExtendioDylib.dylib` plus the stub frameworks the app actually
+   links (`GameController.dylib`, `Photos.dylib`) into a local
    `Payload/<AppName>.app/dylib/` folder, repoints the app executable to
    `@executable_path/dylib/...` (nothing system-wide is touched), bumps
    `MinimumOSVersion` to 6.0, and re-zips the result as `<AppName>.zip` (rename

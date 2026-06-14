@@ -130,41 +130,83 @@ PY
 
 mkdir -p "$DYLIB_DIR"
 
-GC_SRC=""
-if [[ -f "$SCRIPT_DIR/GameController.dylib" ]]; then
-  GC_SRC="$SCRIPT_DIR/GameController.dylib"
-elif [[ -f "$SCRIPT_DIR/.theos/obj/debug/GameController.dylib" ]]; then
-  GC_SRC="$SCRIPT_DIR/.theos/obj/debug/GameController.dylib"
-elif [[ -f ".theos/obj/debug/GameController.dylib" ]]; then
-  GC_SRC=".theos/obj/debug/GameController.dylib"
+# Resolve a built dylib by name, checking (in order): next to this script,
+# the script's .theos build dir, and the local .theos build dir.
+resolve_dylib() {
+  local name="$1"
+  for c in \
+    "$SCRIPT_DIR/$name" \
+    "$SCRIPT_DIR/.theos/obj/debug/$name" \
+    ".theos/obj/debug/$name"; do
+    [[ -f "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
+# Find an otool to detect what the executable actually links. Optional —
+# if missing we fall back to applying every known framework change (which
+# install_name_tool treats as a no-op when the load command is absent).
+OTOOL="$(command -v otool || true)"
+if [[ -z "$OTOOL" ]]; then
+  for c in \
+    "$SCRIPT_DIR/tools/otool" \
+    "${THEOS:-}/toolchain/linux/iphone/bin/otool" \
+    "${THEOS:-}/toolchain/linux/iphone/bin/llvm-otool"; do
+    [[ -x "$c" ]] && OTOOL="$c" && break
+  done
 fi
 
+links_framework() {
+  # $1 = framework load-command path; returns 0 if the executable links it
+  local path="$1"
+  if [[ -n "$OTOOL" ]]; then
+    "$OTOOL" -L "$EXECUTABLE" 2>/dev/null | grep -qF "$path"
+  else
+    # No otool available — assume it links so we apply the change anyway.
+    return 0
+  fi
+}
+
+# --- ReExtendioDylib: always required (missing-symbol stubs + libSystem reexport) ---
 RE_SRC=""
 if [[ -f "$SCRIPT_DIR/ReExtendioDylib.dylib" ]]; then
   RE_SRC="$SCRIPT_DIR/ReExtendioDylib.dylib"
 elif [[ -f "ReExtendioDylib.dylib" ]]; then
   RE_SRC="ReExtendioDylib.dylib"
 fi
-
-if [[ -z "$GC_SRC" ]]; then
-  echo "error: GameController.dylib not found" >&2
-  exit 1
-fi
 if [[ -z "$RE_SRC" ]]; then
   echo "error: ReExtendioDylib.dylib not found" >&2
   exit 1
 fi
-
-cp "$GC_SRC" "$DYLIB_DIR/GameController.dylib"
-echo "Copied GameController.dylib to $DYLIB_DIR/"
-
 cp "$RE_SRC" "$DYLIB_DIR/ReExtendioDylib.dylib"
 echo "Copied ReExtendioDylib.dylib to $DYLIB_DIR/"
 
-"$INT" \
-  -change /System/Library/Frameworks/GameController.framework/GameController @executable_path/dylib/GameController.dylib \
-  -change /usr/lib/libSystem.B.dylib @executable_path/dylib/ReExtendioDylib.dylib \
-  "$EXECUTABLE"
+# install_name_tool args, built up as needed.
+INT_ARGS=(-change /usr/lib/libSystem.B.dylib @executable_path/dylib/ReExtendioDylib.dylib)
+
+# --- Stub frameworks: only repoint the ones this executable actually links. ---
+# name|dylib|framework-load-command-path
+STUBS=(
+  "GameController|GameController.dylib|/System/Library/Frameworks/GameController.framework/GameController"
+  "Photos|Photos.dylib|/System/Library/Frameworks/Photos.framework/Photos"
+)
+
+for entry in "${STUBS[@]}"; do
+  IFS='|' read -r sname sdylib spath <<<"$entry"
+  if ! links_framework "$spath"; then
+    echo "Skipping $sname (executable does not link $spath)"
+    continue
+  fi
+  if ! src="$(resolve_dylib "$sdylib")"; then
+    echo "error: $sdylib not found (needed for $spath)" >&2
+    exit 1
+  fi
+  cp "$src" "$DYLIB_DIR/$sdylib"
+  echo "Copied $sdylib to $DYLIB_DIR/"
+  INT_ARGS+=(-change "$spath" "@executable_path/dylib/$sdylib")
+done
+
+"$INT" "${INT_ARGS[@]}" "$EXECUTABLE"
 
 # Stage into a proper IPA layout (Payload/<App>.app) and zip it up, no matter
 # where the .app currently lives.
