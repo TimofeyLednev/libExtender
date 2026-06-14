@@ -25,6 +25,8 @@ layers those back in so the app launches on iOS 6:
 | RedBall 4 | **Fully playable** — fixed by the ABI-correct `__sincosf_stret` stub (‼️). |
 | Where's my Perry | Not thoroughly tested, but gets ingame as of the latest commit. |
 | PPAP | Gets ingame, but crashes with `KERN_INVALID_ADDRESS` at `0x00000000` once your bullet reaches the top. |
+| Geometry Dash 2.11 | **Fully playable** - the game works completely and perfectly, and this is an iOS 8 game |
+| Kiloblocks | **Fully playable** - the game works fully, and this is an iOS 8 game |
 
 ## Building
 
