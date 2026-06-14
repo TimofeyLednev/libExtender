@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Repoint ReExtendioDylib's reexport from the placeholder empty.dylib to the
-# real libSystem so the stub symbols (__sincos_stret, __exp10) get layered on
-# top of the system library at runtime.
+# Repoint ReExtendioDylib's reexports from the placeholder dylibs to the real
+# system libraries so the stub symbols get layered on top at runtime:
+#   - empty.dylib          -> /usr/lib/libSystem.B.dylib   (__sincos_stret, __exp10, ...)
+#   - emptyfoundation.dylib -> Foundation                  (NSURLComponents, NSURLQueryItem, ...)
 #
 # Works on macOS (system install_name_tool) and Linux (Theos toolchain's
 # install_name_tool). Pass the dylib path as $1, or it defaults to
@@ -33,6 +34,7 @@ fi
 
 "$INT" \
   -change /usr/local/lib/empty.dylib /usr/lib/libSystem.B.dylib \
+  -change /usr/local/lib/emptyfoundation.dylib /System/Library/Frameworks/Foundation.framework/Foundation \
   "$DYLIB"
 
-echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib"
+echo "Patched $DYLIB -> reexports /usr/lib/libSystem.B.dylib + Foundation"
