@@ -1,7 +1,8 @@
 name: Build libExtender (Linux)
 
-# Builds GameController.dylib + ReExtendioDylib.dylib (and the empty.dylib
-# placeholder) on Ubuntu using the Theos Linux toolchain, patches the reexport,
+# Builds GameController.dylib + Photos.dylib + ReExtendioDylib.dylib (and the
+# empty.dylib placeholder) on Ubuntu using the Theos Linux toolchain, patches
+# the reexport,
 # then bundles everything — together with the toolchain's install_name_tool and
 # the patch scripts — into a single ready-to-use zip. All a user needs is Linux:
 # unzip, run the scripts, done. On a tag push (v*) the zip is attached to a
@@ -73,7 +74,7 @@ jobs:
           export THEOS="$THEOS"
           export PATH="$THEOS/toolchain/linux/iphone/bin:$PATH"
 
-          # GameController.dylib (root project)
+          # GameController.dylib + Photos.dylib (root project)
           make clean || true
           make
 
@@ -92,6 +93,7 @@ jobs:
 
           # --- dylibs ---
           cp .theos/obj/debug/GameController.dylib bundle/
+          cp .theos/obj/debug/Photos.dylib bundle/
           cp ReExtendioDylib/.theos/obj/debug/ReExtendioDylib.dylib bundle/
           cp ReExtendioDylib/.theos/obj/debug/empty.dylib bundle/ || true
 
@@ -113,6 +115,7 @@ jobs:
 
           Contents:
             GameController.dylib    Stub GameController.framework for iOS 6
+            Photos.dylib            Stub Photos.framework for iOS 6 (added in iOS 8)
             ReExtendioDylib.dylib   Missing-symbol stubs (already patched to
                                     reexport /usr/lib/libSystem.B.dylib)
             empty.dylib             Placeholder (not needed at runtime)
@@ -136,7 +139,9 @@ jobs:
           What ExtendioLegacyPatch.sh does:
             * Sets MinimumOSVersion to 6.0 in the app's Info.plist
               (uses PlistBuddy on macOS, or plutil / plistutil on Linux).
-            * Copies GameController.dylib + ReExtendioDylib.dylib into a NEW
+            * Copies the stub dylibs it needs (GameController.dylib and/or
+              Photos.dylib, depending on what the app links) plus
+              ReExtendioDylib.dylib into a NEW
               local folder:  Payload/<AppName>.app/dylib/
             * Repoints the app executable's load commands to those local copies
               via @executable_path/dylib/GameController.dylib and
