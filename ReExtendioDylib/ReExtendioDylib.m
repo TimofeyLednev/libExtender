@@ -492,6 +492,69 @@ NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicati
 
 @end
 
+#pragma mark - NSHTTPCookieStorage (CFNetwork shim)
+
+// MCPE 1.1.5 references _OBJC_CLASS_$_NSHTTPCookieStorage from CFNetwork.
+// On iOS 6.1.3 dyld can't resolve it at pre-bind time because the symbol
+// visibility changed in iOS 7. Providing the class here (reexported via
+// emptycfnetwork -> CFNetwork) satisfies dyld before the process starts.
+
+@interface NSHTTPCookieStorage ()
+@property (nonatomic, strong) NSMutableArray *re_cookies;
+@end
+
+@implementation NSHTTPCookieStorage
+
++ (NSHTTPCookieStorage *)sharedHTTPCookieStorage {
+    static NSHTTPCookieStorage *shared = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        shared = [[self alloc] init];
+    });
+    return shared;
+}
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _re_cookies = [NSMutableArray array];
+    }
+    return self;
+}
+
+- (NSArray *)cookies {
+    return [self.re_cookies copy];
+}
+
+- (void)setCookie:(NSHTTPCookie *)cookie {
+    if (!cookie) return;
+    [self.re_cookies addObject:cookie];
+}
+
+- (void)deleteCookie:(NSHTTPCookie *)cookie {
+    [self.re_cookies removeObject:cookie];
+}
+
+- (NSArray *)cookiesForURL:(NSURL *)URL {
+    return @[];
+}
+
+- (void)setCookies:(NSArray *)cookies
+            forURL:(NSURL *)URL
+  mainDocumentURL:(NSURL *)mainDocumentURL {
+    // stub
+}
+
+- (NSHTTPCookieAcceptPolicy)cookieAcceptPolicy {
+    return NSHTTPCookieAcceptPolicyAlways;
+}
+
+- (void)setCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)cookieAcceptPolicy {
+    // stub
+}
+
+@end
+
 #pragma mark - NSProgress (iOS 7)
 
 @interface NSProgress ()
