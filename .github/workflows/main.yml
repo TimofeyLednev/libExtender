@@ -1,0 +1,187 @@
+name: Build libExtender (Linux)
+
+# Builds GameController.dylib + Photos.dylib + ReExtendioDylib.dylib (and the
+# empty.dylib placeholder) on Ubuntu using the Theos Linux toolchain, patches
+# the reexport,
+# then bundles everything — together with the toolchain's install_name_tool and
+# the patch scripts — into a single ready-to-use zip. All a user needs is Linux:
+# unzip, run the scripts, done. On a tag push (v*) the zip is attached to a
+# Release.
+
+on:
+  push:
+    branches: [ main, linux-build-support ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, linux-build-support ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create/update Releases
+
+env:
+  THEOS: ${{ github.workspace }}/theos
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential fakeroot libxml2 \
+            perl git curl wget unzip xz-utils zip rsync libplist-utils
+          # clang-11 from the toolchain needs libtinfo5, which was dropped in
+          # Ubuntu 24.04. Try the repo first, then fall back to the focal .deb.
+          if ! sudo apt-get install -y libtinfo5; then
+            curl -fsSL -o /tmp/libtinfo5.deb \
+              http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2_amd64.deb
+            sudo dpkg -i /tmp/libtinfo5.deb || sudo apt-get install -fy
+          fi
+
+      - name: Cache Theos (toolchain + SDKs)
+        id: cache-theos
+        uses: actions/cache@v4
+        with:
+          path: theos
+          key: theos-linux-x86_64-iphoneos-v1
+
+      - name: Install Theos
+        if: steps.cache-theos.outputs.cache-hit != 'true'
+        run: |
+          set -euxo pipefail
+          git clone --recursive https://github.com/theos/theos.git "$THEOS"
+
+          # Linux iOS toolchain (clang + cctools: install_name_tool, ldid, otool...)
+          mkdir -p "$THEOS/toolchain"
+          curl -fsSL \
+            https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-x86_64.tar.xz \
+            | tar -xJf - -C "$THEOS/toolchain/"
+
+          # iOS SDKs (shallow clone, keep only iPhoneOS SDKs)
+          git clone --depth=1 https://github.com/theos/sdks.git /tmp/theos-sdks
+          cp -a /tmp/theos-sdks/iPhoneOS*.sdk "$THEOS/sdks/"
+          rm -rf /tmp/theos-sdks
+
+      - name: Build dylibs
+        run: |
+          set -euxo pipefail
+          export THEOS="$THEOS"
+          export PATH="$THEOS/toolchain/linux/iphone/bin:$PATH"
+
+          # GameController.dylib + Photos.dylib (root project)
+          make clean || true
+          make
+
+          # empty.dylib + ReExtendioDylib.dylib
+          ( cd ReExtendioDylib && make clean || true; make )
+
+      - name: Collect, patch & bundle
+        run: |
+          set -euxo pipefail
+          export THEOS="$THEOS"
+          TC="$THEOS/toolchain/linux/iphone/bin"
+          export PATH="$TC:$PATH"
+
+          rm -rf bundle
+          mkdir -p bundle/tools
+
+          # --- dylibs ---
+          cp .theos/obj/debug/GameController.dylib bundle/
+          cp .theos/obj/debug/Photos.dylib bundle/
+          cp ReExtendioDylib/.theos/obj/debug/ReExtendioDylib.dylib bundle/
+          cp ReExtendioDylib/.theos/obj/debug/empty.dylib bundle/ || true
+
+          # Patch reexport: empty.dylib -> libSystem.B.dylib (so the bundled
+          # ReExtendioDylib.dylib is already good to go out of the box).
+          bash PatchDylib.sh bundle/ReExtendioDylib.dylib
+
+          # --- bundle the toolchain's install_name_tool so users don't need Theos ---
+          cp "$TC/install_name_tool" bundle/tools/
+          chmod +x bundle/tools/install_name_tool
+
+          # --- patch scripts ---
+          cp PatchDylib.sh ExtendioLegacyPatch.sh PatchPlist.sh bundle/
+
+          # --- usage note ---
+          cat > bundle/README.txt <<'EOF'
+          libExtender — prebuilt dylibs + Linux install_name_tool
+          =======================================================
+
+          Contents:
+            GameController.dylib    Stub GameController.framework for iOS 6
+            Photos.dylib            Stub Photos.framework for iOS 6 (added in iOS 8)
+            ReExtendioDylib.dylib   Missing-symbol stubs (already patched to
+                                    reexport /usr/lib/libSystem.B.dylib)
+            empty.dylib             Placeholder (not needed at runtime)
+            tools/install_name_tool Theos' Linux install_name_tool — no Theos
+                                    install required, works on any x86_64 Linux
+            PatchDylib.sh           Repoints the ReExtendioDylib reexport (already
+                                    applied to the bundled dylib; re-run if needed)
+            ExtendioLegacyPatch.sh  Patches an extracted IPA to use these dylibs
+            PatchPlist.sh           Helper to bump MinimumOSVersion + rezip
+
+          Quick start (Linux only):
+            1. Install a plist editor (one time):
+                 sudo apt-get install -y libplist-utils zip
+            2. Extract your .ipa here so you have a Payload/ folder next to
+               these files.
+            3. Patch your app (run from this folder):
+                 ./ExtendioLegacyPatch.sh <AppName>
+               where <AppName> is the name of Payload/<AppName>.app (and its
+               executable inside it).
+
+          What ExtendioLegacyPatch.sh does:
+            * Sets MinimumOSVersion to 6.0 in the app's Info.plist
+              (uses PlistBuddy on macOS, or plutil / plistutil on Linux).
+            * Copies the stub dylibs it needs (GameController.dylib and/or
+              Photos.dylib, depending on what the app links) plus
+              ReExtendioDylib.dylib into a NEW
+              local folder:  Payload/<AppName>.app/dylib/
+            * Repoints the app executable's load commands to those local copies
+              via @executable_path/dylib/GameController.dylib and
+              @executable_path/dylib/ReExtendioDylib.dylib
+              (no system paths are touched — everything lives inside the app).
+            * It automatically finds install_name_tool: PATH first, then the
+              bundled tools/install_name_tool, then $THEOS. You do NOT need
+              Theos installed.
+            * Re-zips the patched Payload as <AppName>.zip (rename to .ipa).
+
+          The dylibs are fat binaries (armv7 + arm64 + arm64e).
+          EOF
+
+          echo "=== bundle contents ==="
+          ls -laR bundle
+
+          echo "=== Architectures ==="
+          for f in bundle/*.dylib; do
+            echo "--- $f ---"
+            lipo -info "$f" || true
+          done
+
+          echo "=== ReExtendioDylib reexport (should be libSystem.B.dylib) ==="
+          otool -l bundle/ReExtendioDylib.dylib | grep -A2 LC_REEXPORT_DYLIB || true
+
+          # --- zip it up ---
+          ( cd bundle && zip -r ../libExtender-linux.zip . )
+          echo "=== zip contents ==="
+          unzip -l libExtender-linux.zip
+
+      - name: Upload build artifact (zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: libExtender-linux
+          path: libExtender-linux.zip
+          if-no-files-found: error
+
+      - name: Attach to Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: libExtender-linux.zip
+          generate_release_notes: true
