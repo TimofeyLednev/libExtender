@@ -37,20 +37,6 @@ __attribute__((visibility("default"))) NSString * const UIContentSizeCategoryDid
 __attribute__((visibility("default"))) NSString * const UIApplicationOpenSettingsURLString = @"app-settings:";
 __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicationOpenURLOptionsSourceApplicationKey";
 
-// CoreTelephony radio technology strings are strong-linked by the game and are
-// missing on iOS 6 even though the framework itself exists.
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyDidChangeNotification = @"CTRadioAccessTechnologyDidChangeNotification";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyGPRS = @"CTRadioAccessTechnologyGPRS";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyEdge = @"CTRadioAccessTechnologyEdge";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyWCDMA = @"CTRadioAccessTechnologyWCDMA";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyHSDPA = @"CTRadioAccessTechnologyHSDPA";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyHSUPA = @"CTRadioAccessTechnologyHSUPA";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMA1x = @"CTRadioAccessTechnologyCDMA1x";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORev0 = @"CTRadioAccessTechnologyCDMAEVDORev0";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORevA = @"CTRadioAccessTechnologyCDMAEVDORevA";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORevB = @"CTRadioAccessTechnologyCDMAEVDORevB";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyeHRPD = @"CTRadioAccessTechnologyeHRPD";
-__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyLTE = @"CTRadioAccessTechnologyLTE";
 
 @implementation NSURLQueryItem
 
