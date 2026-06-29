@@ -37,6 +37,21 @@ __attribute__((visibility("default"))) NSString * const UIContentSizeCategoryDid
 __attribute__((visibility("default"))) NSString * const UIApplicationOpenSettingsURLString = @"app-settings:";
 __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOptionsSourceApplicationKey = @"UIApplicationOpenURLOptionsSourceApplicationKey";
 
+// CoreTelephony radio technology strings are strong-linked by the game and are
+// missing on iOS 6 even though the framework itself exists.
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyDidChangeNotification = @"CTRadioAccessTechnologyDidChangeNotification";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyGPRS = @"CTRadioAccessTechnologyGPRS";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyEdge = @"CTRadioAccessTechnologyEdge";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyWCDMA = @"CTRadioAccessTechnologyWCDMA";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyHSDPA = @"CTRadioAccessTechnologyHSDPA";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyHSUPA = @"CTRadioAccessTechnologyHSUPA";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMA1x = @"CTRadioAccessTechnologyCDMA1x";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORev0 = @"CTRadioAccessTechnologyCDMAEVDORev0";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORevA = @"CTRadioAccessTechnologyCDMAEVDORevA";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyCDMAEVDORevB = @"CTRadioAccessTechnologyCDMAEVDORevB";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyeHRPD = @"CTRadioAccessTechnologyeHRPD";
+__attribute__((visibility("default"))) NSString * const CTRadioAccessTechnologyLTE = @"CTRadioAccessTechnologyLTE";
+
 @implementation NSURLQueryItem
 
 + (instancetype)queryItemWithName:(NSString *)name value:(NSString *)value {
@@ -131,12 +146,14 @@ __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOpti
             [items addObject:[[NSURLQueryItem alloc] initWithName:@"" value:nil]];
             continue;
         }
-        NSRange eq = [pair rangeOfString:@"="];
-        if (eq.location == NSNotFound) {
+        const char *utf8 = [pair UTF8String];
+        const char *eq = utf8 ? strchr(utf8, '=') : NULL;
+        if (!eq) {
             [items addObject:[[NSURLQueryItem alloc] initWithName:REPercentDecode(pair) value:nil]];
         } else {
-            NSString *name = [pair substringToIndex:eq.location];
-            NSString *value = [pair substringFromIndex:eq.location + 1];
+            NSUInteger offset = (NSUInteger)(eq - utf8);
+            NSString *name = [pair substringToIndex:offset];
+            NSString *value = [pair substringFromIndex:offset + 1];
             [items addObject:[[NSURLQueryItem alloc] initWithName:REPercentDecode(name) value:REPercentDecode(value)]];
         }
     }
@@ -151,12 +168,9 @@ __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOpti
         return;
     }
     NSMutableArray *pairs = [NSMutableArray array];
-    for (id item in queryItems) {
-        NSString *name = REStringFromObject([item valueForKey:@"name"]);
-        NSString *value = REStringFromObject([item valueForKey:@"value"]);
-        if (!name) {
-            name = @"";
-        }
+    for (NSURLQueryItem *item in queryItems) {
+        NSString *name = item.name ?: @"";
+        NSString *value = item.value;
         if (value) {
             [pairs addObject:[NSString stringWithFormat:@"%@=%@", REPercentEncode(name), REPercentEncode(value)]];
         } else {
@@ -590,7 +604,12 @@ __attribute__((visibility("default"))) NSString * const UIApplicationOpenURLOpti
     if (self.re_totalUnitCount <= 0) {
         return 0.0;
     }
-    return (double)self.re_completedUnitCount / (double)self.re_totalUnitCount;
+    double total = (double)(int32_t)self.re_totalUnitCount;
+    double completed = (double)(int32_t)self.re_completedUnitCount;
+    if (total == 0.0) {
+        return 0.0;
+    }
+    return completed / total;
 }
 
 - (BOOL)isCancelled { return NO; }
